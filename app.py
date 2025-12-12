@@ -13,6 +13,14 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import os
 
+# Import circuit visual module
+try:
+    from circuit_visual_detailed import create_detailed_circuit, fig_to_image
+    CIRCUIT_VISUAL_AVAILABLE = True
+except ImportError:
+    CIRCUIT_VISUAL_AVAILABLE = False
+    st.warning("Circuit visual module not available")
+
 # ------------------------------
 # CONFIG
 # ------------------------------
@@ -186,6 +194,15 @@ st.markdown("""
         margin: 10px 0;
     }
     
+    /* Circuit diagram specific */
+    .circuit-container {
+        background: rgba(15, 23, 42, 0.9);
+        border: 2px solid #334155;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+    
     /* Section headers */
     .section-header {
         border-bottom: 2px solid #334155;
@@ -220,7 +237,6 @@ def simulate_input_from_dataset(dataset, index):
         row = dataset.iloc[index]
         
         # Generate motion intensity based on temperature pattern
-        # Higher temperature might indicate more activity
         if row['status'] == 'WARNING':
             motion_intensity = np.random.uniform(0.6, 0.9)
         elif row['status'] == 'LOW':
@@ -311,6 +327,193 @@ def get_anomaly_conditions(data, prediction):
     
     return conditions if conditions else ["All systems normal"]
 
+def display_circuit_page():
+    """Display circuit diagram page"""
+    st.title("🔌 Circuit Diagram & Hardware")
+    st.markdown("### Diagram Rangkaian dan Spesifikasi Hardware Sistem Vigilant")
+    
+    if CIRCUIT_VISUAL_AVAILABLE:
+        # Create tabs for different views
+        tab1, tab2, tab3 = st.tabs(["🎨 Visual Diagram", "📋 Component List", "🔧 Installation Guide"])
+        
+        with tab1:
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                st.markdown('<div class="circuit-container">', unsafe_allow_html=True)
+                fig = create_detailed_circuit()
+                st.pyplot(fig)
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Download button
+                img = fig_to_image(fig)
+                buf = io.BytesIO()
+                img.save(buf, format='PNG')
+                byte_im = buf.getvalue()
+                
+                st.download_button(
+                    label="📥 Download Circuit Diagram",
+                    data=byte_im,
+                    file_name="vigilant_circuit_diagram.png",
+                    mime="image/png"
+                )
+            
+            with col2:
+                st.markdown("### 🎯 **Component Legend**")
+                
+                components = [
+                    ("⚡ ESP32", "f59e0b", "Main microcontroller"),
+                    ("🌡️ DHT11", "3b82f6", "Temp/Humidity sensor"),
+                    ("📷 Camera", "ef4444", "OV2640 2MP camera"),
+                    ("📺 OLED", "10b981", "SSD1306 display"),
+                    ("🔊 Buzzer", "8b5cf6", "Audio alert"),
+                    ("⚡ Relay", "ec4899", "Power control"),
+                    ("🔘 Button", "64748b", "User input"),
+                    ("💡 LED", "22c55e", "Status indicator"),
+                ]
+                
+                for name, color, desc in components:
+                    st.markdown(f"""
+                    <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 5px; background: rgba(30, 41, 59, 0.5); border-radius: 5px;">
+                        <div style="width: 12px; height: 12px; background-color: #{color}; 
+                             border-radius: 3px; margin-right: 10px; border: 1px solid white;"></div>
+                        <div style="flex: 1;">
+                            <strong style="font-size: 12px;">{name}</strong><br>
+                            <small style="color: #94a3b8; font-size: 10px;">{desc}</small>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                st.markdown("### 🔗 **Connection Types**")
+                st.markdown("""
+                - **🟡 Power Lines:** 5V/3.3V supply
+                - **🔵 Data Lines:** Sensor communication  
+                - **🟢 I2C Bus:** Display & camera
+                - **🔴 Control:** GPIO outputs
+                - **⚪ Input:** User controls
+                """)
+        
+        with tab2:
+            st.markdown("### 📦 **Bill of Materials**")
+            
+            # Component table
+            components_df = pd.DataFrame({
+                'Component': ['ESP32 DevKit V1', 'DHT11 Sensor', 'ESP32-CAM', 'OLED SSD1306', 
+                            'Active Buzzer', '5V Relay Module', 'Push Button', 'LED 5mm',
+                            '220Ω Resistor', '10KΩ Resistor', 'Breadboard', 'Jumper Wires'],
+                'Qty': [1, 1, 1, 1, 1, 1, 1, 1, 5, 5, 1, 30],
+                'Unit Price (USD)': [8.99, 2.99, 9.99, 6.99, 1.99, 2.49, 0.50, 0.20, 0.10, 0.10, 5.99, 4.99],
+                'Total (USD)': [8.99, 2.99, 9.99, 6.99, 1.99, 2.49, 0.50, 0.20, 0.50, 0.50, 5.99, 4.99]
+            })
+            
+            components_df['Total (USD)'] = components_df['Qty'] * components_df['Unit Price (USD)']
+            total_cost = components_df['Total (USD)'].sum()
+            
+            st.dataframe(components_df, use_container_width=True)
+            
+            col_cost1, col_cost2 = st.columns(2)
+            with col_cost1:
+                st.metric("Total Components", len(components_df))
+            with col_cost2:
+                st.metric("Estimated Cost", f"${total_cost:.2f} USD")
+            
+            # Download BOM
+            bom_csv = components_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download BOM (CSV)",
+                data=bom_csv,
+                file_name="vigilant_bill_of_materials.csv",
+                mime="text/csv"
+            )
+        
+        with tab3:
+            st.markdown("### 🔧 **Installation & Wiring Guide**")
+            
+            col_guide1, col_guide2 = st.columns(2)
+            
+            with col_guide1:
+                st.markdown("#### **Step 1: Power Connections**")
+                st.markdown("""
+                1. Connect 5V power supply to ESP32 Vin pin
+                2. Connect GND to common ground rail
+                3. Add 10μF capacitor between 5V and GND
+                4. Add 100nF capacitor between 3.3V and GND
+                """)
+                
+                st.markdown("#### **Step 2: Sensor Connections**")
+                st.markdown("""
+                **DHT11 Wiring:**
+                - DATA → GPIO 4 (with 10K pull-up)
+                - VCC → 3.3V
+                - GND → Common GND
+                
+                **Camera Wiring:**
+                - SDA → GPIO 13
+                - SCL → GPIO 12  
+                - VCC → 3.3V dedicated
+                - GND → Common GND
+                """)
+            
+            with col_guide2:
+                st.markdown("#### **Step 3: Display & Outputs**")
+                st.markdown("""
+                **OLED Display:**
+                - SDA → GPIO 17
+                - SCL → GPIO 16
+                - VCC → 3.3V
+                - GND → Common GND
+                
+                **Output Devices:**
+                - Buzzer + → GPIO 15
+                - Buzzer - → GND
+                - Relay IN → GPIO 33
+                - LED + → GPIO 14
+                - LED - → 220Ω → GND
+                """)
+                
+                st.markdown("#### **Step 4: Testing**")
+                st.markdown("""
+                1. Power on the system
+                2. Check all LED indicators
+                3. Verify sensor readings
+                4. Test camera feed
+                5. Validate communication
+                """)
+            
+            # Troubleshooting section
+            with st.expander("🛠️ **Troubleshooting Common Issues**"):
+                st.markdown("""
+                **Issue 1: ESP32 Not Powering On**
+                - Check 5V power supply
+                - Verify USB cable is data-capable
+                - Check for short circuits
+                
+                **Issue 2: Sensors Not Reading**
+                - Verify 3.3V supply to sensors
+                - Check pull-up resistors
+                - Verify GPIO pin assignments
+                
+                **Issue 3: Camera Not Working**
+                - Ensure sufficient power (200mA+)
+                - Check I2C address (0x30)
+                - Verify focus adjustment
+                
+                **Issue 4: WiFi Connection Issues**
+                - Check SSID and password
+                - Verify signal strength
+                - Check firewall settings
+                """)
+    
+    else:
+        st.error("Circuit visual module not available. Please install matplotlib.")
+        st.info("""
+        To enable circuit visualization:
+        1. Install matplotlib: `pip install matplotlib`
+        2. Restart the application
+        3. The circuit diagram will be available
+        """)
+
 # ------------------------------
 # Session state
 # ------------------------------
@@ -337,9 +540,11 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🔧 System Controls")
     
+    # Navigation dengan circuit diagram option
     page = st.radio(
         "Navigation",
-        ["📊 Dashboard", "📈 Live Monitor", "🌡️ Temperature Analysis", "📋 Project Report", "👥 Team", "⚙️ Settings"],
+        ["📊 Dashboard", "📈 Live Monitor", "🌡️ Temperature Analysis", 
+         "📋 Project Report", "🔌 Circuit Diagram", "👥 Team", "⚙️ Settings"],
         label_visibility="collapsed"
     )
     
@@ -980,6 +1185,12 @@ elif page == "📋 Project Report":
                 )])
                 fig_pie.update_layout(height=300)
                 st.plotly_chart(fig_pie, use_container_width=True)
+
+# ------------------------------
+# CIRCUIT DIAGRAM PAGE
+# ------------------------------
+elif page == "🔌 Circuit Diagram":
+    display_circuit_page()
 
 # ------------------------------
 # TEAM PAGE
