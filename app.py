@@ -758,8 +758,8 @@ with st.sidebar:
     
     page = st.radio(
         "Navigasi",
-        ["📊 Dashboard", "📈 Monitor Langsung", "📊 Riwayat Data", 
-         "👥 Deteksi Orang", "🤖 Analisis ML", "📷 Model ML Kamera", "🔌 Diagram Rangkaian", "⚙️ Pengaturan"],
+        ["📊 Dashboard", "📊 Riwayat Data", 
+         "👥 Deteksi Orang", "🤖 Analisis ML",  "🔌 Diagram Rangkaian", "⚙️ Pengaturan"],
         label_visibility="collapsed"
     )
     
@@ -1131,183 +1131,6 @@ if page == "📊 Dashboard":
             time.sleep(0.1)
             st.rerun()
 
-# ========================
-# 📈 MONITOR LANGSUNG PAGE (DIPERBAIKI)
-# ========================
-elif page == "📈 Monitor Langsung":
-    st.title("📈 Monitor Langsung")
-    st.markdown("Visualisasi data sensor real-time")
-    
-    recent_data = get_recent_readings(limit=100)
-    
-    if recent_data:
-        df = pd.DataFrame(recent_data)
-        
-        if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
-        tab1, tab2, tab3, tab4 = st.tabs(["🌡️ Suhu", "💧 Kelembaban", "💡 Cahaya", "📈 Gabungan"])
-        
-        with tab1:
-            st.subheader("🌡️ Suhu vs Waktu")
-            
-            if 'temperature' in df.columns and df['temperature'].notna().any():
-                fig_temp = go.Figure()
-                fig_temp.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['temperature'],
-                    mode='lines+markers',
-                    name='Suhu',
-                    line=dict(color='#ef4444', width=2),
-                    marker=dict(size=4)
-                ))
-                
-                fig_temp.add_hline(y=32, line_dash="dash", line_color="orange", 
-                                  annotation_text="Batas Tinggi", 
-                                  annotation_position="top right")
-                fig_temp.add_hline(y=22, line_dash="dot", line_color="blue", 
-                                  annotation_text="Batas Rendah", 
-                                  annotation_position="top right")
-                
-                fig_temp.update_layout(
-                    height=400,
-                    xaxis_title="Waktu",
-                    yaxis_title="Suhu (°C)",
-                    showlegend=True
-                )
-                st.plotly_chart(fig_temp, use_container_width=True)
-            else:
-                st.info("Tidak ada data suhu tersedia")
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with tab2:
-            st.subheader("💧 Kelembaban vs Waktu")
-            
-            if 'humidity' in df.columns and df['humidity'].notna().any():
-                fig_hum = go.Figure()
-                fig_hum.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['humidity'],
-                    mode='lines+markers',
-                    name='Kelembaban',
-                    line=dict(color='#0ea5e9', width=2),
-                    marker=dict(size=4)
-                ))
-                
-                fig_hum.add_hline(y=75, line_dash="dash", line_color="orange", 
-                                  annotation_text="Batas Tinggi", 
-                                  annotation_position="top right")
-                fig_hum.add_hline(y=30, line_dash="dot", line_color="blue", 
-                                  annotation_text="Batas Rendah", 
-                                  annotation_position="top right")
-                
-                fig_hum.update_layout(
-                    height=400,
-                    xaxis_title="Waktu",
-                    yaxis_title="Kelembaban (%)",
-                    showlegend=True
-                )
-                st.plotly_chart(fig_hum, use_container_width=True)
-            else:
-                st.info("Tidak ada data kelembaban tersedia")
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with tab3:
-            st.subheader("💡 Intensitas Cahaya vs Waktu")
-            
-            if 'light' in df.columns and df['light'].notna().any():
-                fig_light = go.Figure()
-                fig_light.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['light'],
-                    mode='lines+markers',
-                    name='Cahaya',
-                    line=dict(color='#fbbf24', width=2),
-                    marker=dict(size=4)
-                ))
-                
-                fig_light.update_layout(
-                    height=400,
-                    xaxis_title="Waktu",
-                    yaxis_title="Cahaya (%)",
-                    showlegend=True
-                )
-                st.plotly_chart(fig_light, use_container_width=True)
-            else:
-                st.info("Tidak ada data cahaya tersedia")
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with tab4:
-            # PERBAIKAN: Bagian ini sebelumnya menyebabkan error
-            st.subheader("📈 Data Sensor Gabungan")
-            
-            fig_combined = go.Figure()
-            
-            if 'temperature' in df.columns and df['temperature'].notna().any():
-                fig_combined.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['temperature'],
-                    mode='lines',
-                    name='Suhu',
-                    line=dict(color='#ef4444', width=2),
-                    yaxis='y1'
-                ))
-            
-            if 'humidity' in df.columns and df['humidity'].notna().any():
-                fig_combined.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['humidity'],
-                    mode='lines',
-                    name='Kelembaban',
-                    line=dict(color='#0ea5e9', width=2),
-                    yaxis='y2'
-                ))
-            
-            if 'light' in df.columns and df['light'].notna().any():
-                fig_combined.add_trace(go.Scatter(
-                    x=df['timestamp'],
-                    y=df['light'],
-                    mode='lines',
-                    name='Cahaya',
-                    line=dict(color='#fbbf24', width=2),
-                    yaxis='y3'
-                ))
-            
-            # PERBAIKAN: Format yang benar untuk multiple y-axes
-            fig_combined.update_layout(
-                height=400,
-                xaxis=dict(title="Waktu"),
-                yaxis=dict(
-                    title="Suhu (°C)",
-                    tickFont=dict(color="#ef4444"),
-                    tickfont=dict(color="#ef4444")
-                ),
-                yaxis2=dict(
-                    title="Kelembaban (%)",
-                    tickFont=dict(color="#0ea5e9"),
-                    tickfont=dict(color="#0ea5e9"),
-                    overlaying='y',
-                    side='right'
-                ),
-                yaxis3=dict(
-                    title="Cahaya (%)",
-                    tickFont=dict(color="#fbbf24"),
-                    tickfont=dict(color="#fbbf24"),
-                    overlaying='y',
-                    side='right',
-                    position=0.15
-                ),
-                showlegend=True
-            )
-            st.plotly_chart(fig_combined, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    else:
-        st.info("Tidak ada data tersedia dari MongoDB")
-    
-    if st.session_state.running:
-        time.sleep(refresh_rate)
-        st.rerun()
 
 # ========================
 # 📊 RIWAYAT DATA PAGE
@@ -2004,7 +1827,7 @@ elif page == "🔌 Diagram Rangkaian":
 elif page == "⚙️ Pengaturan":
     st.title("⚙️ Pengaturan")
     
-    tab1, tab2, tab3 = st.tabs(["Umum", "Threshold", "Sistem"])
+    tab1, tab2 = st.tabs(["Umum",  "Sistem"])
     
     with tab1:
         
@@ -2020,49 +1843,8 @@ elif page == "⚙️ Pengaturan":
         
         st.markdown("</div>", unsafe_allow_html=True)
     
-    with tab2:
-        
-        st.subheader("Threshold Peringatan")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            low_temp = st.slider("Suhu Rendah (°C)", 15, 25, 22)
-            high_temp = st.slider("Suhu Tinggi (°C)", 28, 45, 32)
-            crit_temp = st.slider("Suhu Kritis (°C)", 33, 50, 35)
-            
-            st.markdown("---")
-            
-            person_warning = st.slider("Deteksi Orang: Waspada (detik)", 5, 60, 10, 5)
-            person_critical = st.slider("Deteksi Orang: Kritis (detik)", 15, 120, 30, 5)
-        
-        with col2:
-            low_hum = st.slider("Kelembaban Rendah (%)", 10, 35, 30)
-            high_hum = st.slider("Kelembaban Tinggi (%)", 60, 90, 75)
-            crit_hum = st.slider("Kelembaban Kritis (%)", 80, 100, 85)
-            
-            st.markdown("---")
-            
-            light_dark = st.slider("Cahaya: Gelap (%)", 0, 50, 30)
-            light_bright = st.slider("Cahaya: Terang (%)", 50, 100, 70)
-        
-        st.markdown("### 📊 Ringkasan Threshold")
-        col_sum1, col_sum2 = st.columns(2)
-        with col_sum1:
-            st.markdown("**🌡️ Suhu:**")
-            st.markdown(f"- Rendah: < {low_temp}°C")
-            st.markdown(f"- Normal: {low_temp} - {high_temp}°C")
-            st.markdown(f"- Tinggi: > {high_temp}°C")
-            st.markdown(f"- Kritis: > {crit_temp}°C")
-        
-        with col_sum2:
-            st.markdown("**👥 Deteksi Orang:**")
-            st.markdown(f"- Normal: < {person_warning}s")
-            st.markdown(f"- Waspada: > {person_warning}s")
-            st.markdown(f"- Kritis: > {person_critical}s")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
     
-    with tab3:
+    with tab2:
         
         st.subheader("Pengaturan Sistem")
         
