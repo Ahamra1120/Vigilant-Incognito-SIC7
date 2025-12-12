@@ -10,9 +10,10 @@ mongo = MongoClient("mongodb+srv://incognito:incognito_sic7@incognito.andn28n.mo
 db = mongo["sensorDB"]
 readings_collection = db["readings"]
 alerts_collection = db["alerts"]
+person_alerts_collection = db["person_alerts"]
 
-# Store last alert time to prevent spam
-last_alert_time = {}
+# Store tracking for persons
+person_tracking = {}  # Track last time each person was seen
 
 # MQTT callback
 def on_message(client, userdata, msg):
@@ -23,56 +24,57 @@ def on_message(client, userdata, msg):
         # Add timestamp
         data["timestamp"] = datetime.now()
         
-        # Insert to MongoDB readings collection
-        readings_collection.insert_one(data)
-        print(f"Inserted to readings collection")
-        
-        # Check for anomalies and create alert if needed
-        check_anomalies(data)
+        # Check if this is a person detection alert
+        if "alert_type" in data and data["alert_type"] == "person_staying":
+            # Handle person detection alert
+            handle_person_alert(data)
+        else:
+            # Handle regular sensor data (just store, no anomaly checking)
+            handle_sensor_data(data)
         
     except Exception as e:
         print(f"Error processing message: {e}")
 
-def check_anomalies(data):
-    """Check sensor data for anomalies"""
-    alerts = []
-    
-    # Temperature anomalies
-    if "temperature" in data and data["temperature"] > 35:
-        alerts.append(f"Critical High Temperature: {data['temperature']}°C")
-    elif "temperature" in data and data["temperature"] > 32:
-        alerts.append(f"High Temperature: {data['temperature']}°C")
-    elif "temperature" in data and data["temperature"] < 22:
-        alerts.append(f"Low Temperature: {data['temperature']}°C")
-    
-    # Humidity anomalies
-    if "humidity" in data and data["humidity"] > 90:
-        alerts.append(f"High Humidity: {data['humidity']}%")
-    
-    # Light anomalies
-    if "light" in data and data["light"] > 900:
-        alerts.append(f"Extreme Brightness: {data['light']} lux")
-    elif "light" in data and data["light"] < 100:
-        alerts.append(f"Extreme Darkness: {data['light']} lux")
-    
-    # Create alert if any anomalies found
-    if alerts:
-        # Prevent alert spam (max 1 per minute per type)
-        alert_type = "sensor_anomaly"
-        current_time = time.time()
+def handle_sensor_data(data):
+    """Handle regular sensor data - just store, no anomaly checking"""
+    # Insert to MongoDB readings collection
+    readings_collection.insert_one(data)
+    print(f"✓ Sensor data inserted to readings collection")
+
+def handle_person_alert(data):
+    """Handle person detection alerts - CREATE ALERT WHEN PERSON STAYS FOR 5 SECONDS"""
+    try:
+        person_id = data.get("person_id")
+        duration = data.get("duration_seconds", 0)
         
-        if alert_type not in last_alert_time or (current_time - last_alert_time[alert_type] > 60):
+        # Store in person alerts collection
+        person_alerts_collection.insert_one(data)
+        print(f"✓ Person alert stored: Person {person_id} stayed for {duration}s at {data.get('position')}")
+        
+        # Check if this is exactly 5 seconds (person just left after 5 seconds)
+        if duration == 5.0:
+            # CREATE ALERT for person detection (exactly 5 seconds)
             alert_data = {
                 "timestamp": data["timestamp"],
-                "type": "SENSOR_ANOMALY",
-                "conditions": alerts,
-                "data": data,
-                "severity": "HIGH" if "Critical" in " ".join(alerts) else "MEDIUM"
+                "type": "PERSON_DETECTED",
+                "person_id": person_id,
+                "duration_seconds": duration,
+                "position": data.get("position"),
+                "message": f"Person {person_id} detected for exactly {duration} seconds",
+                "severity": "MEDIUM",
+                "source": "Person Detection System",
+                "data": data
             }
             
+            # Insert alert
             alerts_collection.insert_one(alert_data)
-            last_alert_time[alert_type] = current_time
-            print(f"Alert created: {alerts}")
+            print(f"⚠️ ALERT: Person {person_id} detected and left after {duration} seconds")
+            
+        else:
+            print(f"ℹ️ Person {person_id} stayed for {duration}s (not 5s, no alert)")
+                
+    except Exception as e:
+        print(f"Error handling person alert: {e}")
 
 # MQTT setup
 client = mqtt.Client()
@@ -80,15 +82,30 @@ client.on_message = on_message
 
 try:
     client.connect("broker.emqx.io", 1883, 60)
-    client.subscribe("sic7/teamincognito/sensors")
     
-    print("Listening for MQTT messages on topic 'sic7/teamincognito/sensors'...")
+    # Subscribe to both topics
+    client.subscribe("sic7/teamincognito/sensors")
+    client.subscribe("sic7/teamincognito/alarm")
+    
+    print("=" * 60)
+    print("🚀 MQTT to MongoDB Bridge Started")
+    print("=" * 60)
+    print("📡 Listening for MQTT messages on topics:")
+    print("   • sic7/teamincognito/sensors")
+    print("   • sic7/teamincognito/person_alerts")
+    print("=" * 60)
+    print("📊 Person Detection Logic:")
+    print("   • Alert created ONLY when person stays for exactly 5 seconds")
+    print("   • 5 seconds = person detected and then left")
+    print("=" * 60)
     print("Press Ctrl+C to stop")
+    print("=" * 60)
     
     client.loop_forever()
     
 except KeyboardInterrupt:
-    print("\nStopping MQTT client...")
+    print("\n🛑 Stopping MQTT client...")
     client.disconnect()
+    print("✅ MQTT client stopped")
 except Exception as e:
-    print(f"Error: {e}")
+    print(f"❌ Error: {e}")
