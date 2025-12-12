@@ -15,11 +15,12 @@ from pymongo import MongoClient
 from bson import ObjectId
 
 # MongoDB connection
-mongo = MongoClient("mongodb+srv://incognito:incognito_sic7@incognito.andn28n.mongodb.net/?appName=Incognito")
+mongo = MongoClient("mongodb+srv://incognito:incognito_sic7@incognito.andn28n.mongodb.net/?retryWrites=true&w=majority")
 db = mongo["sensorDB"]
 readings_collection = db["readings"]
 alerts_collection = db["alerts"]
 person_alerts_collection = db["person_alerts"]
+
 try:
     from circuit_visual_detailed import create_detailed_circuit
     CIRCUIT_VISUAL_AVAILABLE = True
@@ -249,7 +250,7 @@ def get_ml_prediction(temperature, humidity):
 @st.cache_resource
 def get_mongo_client():
     try:
-        client = MongoClient("mongodb+srv://incognito:incognito_sic7@incognito.andn28n.mongodb.net/?appName=Incognito")
+        client = MongoClient("mongodb+srv://incognito:incognito_sic7@incognito.andn28n.mongodb.net/?retryWrites=true&w=majority")
         client.admin.command('ping')
         
         # Create indexes for better performance
