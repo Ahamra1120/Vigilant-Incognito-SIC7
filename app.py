@@ -14,6 +14,12 @@ import plotly.express as px
 from pymongo import MongoClient
 from bson import ObjectId
 
+# MongoDB connection
+mongo = MongoClient("mongodb+srv://incognito:incognito_sic7@incognito.andn28n.mongodb.net/?appName=Incognito")
+db = mongo["sensorDB"]
+readings_collection = db["readings"]
+alerts_collection = db["alerts"]
+person_alerts_collection = db["person_alerts"]
 try:
     from circuit_visual_detailed import create_detailed_circuit
     CIRCUIT_VISUAL_AVAILABLE = True
