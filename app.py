@@ -756,7 +756,7 @@ if "camera_detections" not in st.session_state:
 
 with st.sidebar:
     try:
-        st.image(LOGO_PATH, use_column_width=True)
+        st.image(LOGO_PATH, width=True)
     except:
         st.markdown("### 🌡️ VIGILANT")
     
